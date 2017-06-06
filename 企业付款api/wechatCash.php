@@ -1,38 +1,38 @@
 <?php
-class WechatCash
+namespace App\Libs;
+
+class weChatCash
 {
     // key
-    protected $key = 'Hangzhouyouwomeishiwangluoweixin';
-
-    // 提现接口
+    protected $key = '';
     protected $url = 'https://api.mch.weixin.qq.com/mmpaymkttransfers/promotion/transfers';
-
-    // 证书地址
-    protected $sslCert = "./cert/apiclient_cert.pem";
-    protected $sslKey = "./cert/apiclient_key.pem";
+    protected $mchAppid = '';
+    protected $mchid = '';
+    // ssl
+    protected $sslCurt;
+    protected $sslKey;
 
     public function __construct ()
     {
-        //
+        $this->sslCurt = storage_path("cret/apiclient_cert.pem");
+        $this->sslKey = storage_path("cret/apiclient_key.pem");
     }
 
-    /**
-     * 提现
-     * @Author   LiuJian
-     * @DateTime 2017-03-29
-     * @return   [type]     [description]
-     */
-    public function cash ()
+    public function start ($data)
     {
+        if (empty($data)) {
+            return ['status' => 'error', 'message' => '缺少参数'];
+        }
+
         $data = [
-            'mch_appid' => 'wx6276649e045d0022',
-            'mchid' => '1452850622',
-            'nonce_str' => 'ssssssssss',
-            'openid' => 'o2n7KwMc7DzTCKGtiszjfsH2_ssI',
-            'amount' => '11',
-            'spbill_create_ip' => '10.0.0.76',
-            'partner_trade_no' => '11111',
-            'desc' => '用户提现',
+            'openid' => $data['openid'],
+            'amount' => $data['amount'],
+            'partner_trade_no' => $data['partner_trade_no'],
+            'desc' => $data['desc'],
+            'mch_appid' => $this->mchAppid,
+            'mchid' => $this->mchid,
+            'nonce_str' => 'woshisuijide'.mt_rand(1000, 99999),
+            'spbill_create_ip' => '120.27.50.204',
             'check_name' => 'NO_CHECK',
             're_user_name' => '测试可以不写的'
         ];
@@ -53,7 +53,9 @@ class WechatCash
                     <sign>'.$sign.'</sign>
                 </xml>';
 
-        return var_dump($this->getResult($this->url, $data));
+        $info = $this->getCurl($this->url, $data);
+
+        return $this->xmlToArray($info);
     }
 
     /**
@@ -64,7 +66,7 @@ class WechatCash
      * @param    [type]     $data [description]
      * @return   [type]           [description]
      */
-    public function getResult ($url = null, $data)
+    public function getCurl ($url = null, $data)
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_URL, $url);
@@ -73,7 +75,7 @@ class WechatCash
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, FALSE);
 
         // 证书
-        curl_setopt($ch, CURLOPT_SSLCERT, $this->sslCert);
+        curl_setopt($ch, CURLOPT_SSLCERT, $this->sslCurt);
         curl_setopt($ch, CURLOPT_SSLKEY, $this->sslKey);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_AUTOREFERER, 1);
@@ -94,6 +96,8 @@ class WechatCash
     function getSign($array)
     {
         ksort($array);
+        $str = '';
+
         foreach ($array as $k => $v) {
             $str .= $k . "=" . $v . "&";
         }
@@ -103,10 +107,27 @@ class WechatCash
 
         return $result;
     }
+
+
+    /**
+     * 将xml数据转换成数组
+     *
+     * @Author   LiuJian
+     * @DateTime 2017-06-06
+     * @param    string     $xml xml 数据
+     * @return   array          转换的数组
+     */
+    protected function xmlToArray($xml)
+    {
+        // 将XML转为array
+        $array = simplexml_load_string($xml, 'SimpleXMLElement', LIBXML_NOCDATA);
+        $array = json_decode(json_encode($array), true);
+
+        return $array;
+    }
 }
 
-$cash = new WechatCash();
-$cash->cash();
+
 
 
 
